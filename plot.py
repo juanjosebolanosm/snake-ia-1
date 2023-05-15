@@ -2,7 +2,7 @@
 import matplotlib.pyplot as plt
 from IPython import display
 
-
+#Plotting live results
 plt.ion()
 
 
