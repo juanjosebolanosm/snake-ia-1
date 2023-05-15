@@ -1,10 +1,13 @@
 import numpy as np
-import random, torch
+import random
+import torch
 from collections import deque
-from game import SnakeGameAI, Direction, Point
-from model import Linear_QNet, QTrainer
-from helper import plot
+from SnakeGameIA import SnakeGameIa, Direccion,Coordenada 
+from modelo import AprendizajePorRefuerzoLinearQ, entrenamientoQ
+from plot import plot
 
+
+# Constantes 
 MEMORIA_MAXIMA = 100_000
 TAMANIO_BATCH = 1000
 LR = 0.001
@@ -15,41 +18,41 @@ class Agente:
         self.numerojuegos = 0
         self.epsilon = 0 # aleatoriedad
         self.gamma = 0.9 # taza de descuento
-        self.memoria = deque(maxlen=MEMORIA_MAXIMA) # popleft()
-        self.model = Linear_QNet(11, 256, 3)
-        self.trainer = QTrainer(self.model, lr=LR, gamma=self.gamma)
+        self.memoria = deque(maxlen=MEMORIA_MAXIMA) # popIZQUIERDA()
+        self.model = AprendizajePorRefuerzoLinearQ(11, 256, 3)
+        self.trainer = entrenamientoQ(self.model, lr=LR, gamma=self.gamma)
 
 
     def obtener_estado(self, juego):
-        cabeza = juego.snake[0]
-        punto_izq = Point(cabeza.x - 20, cabeza.y)
-        punto_der = Point(cabeza.x + 20, cabeza.y)
-        punto_arr = Point(cabeza.x, cabeza.y - 20)
-        punto_abj = Point(cabeza.x, cabeza.y + 20)
+        cabeza = juego.serpiente[0]
+        punto_izq = Coordenada(cabeza.x - 20, cabeza.y)
+        punto_der = Coordenada(cabeza.x + 20, cabeza.y)
+        punto_arr = Coordenada(cabeza.x, cabeza.y - 20)
+        punto_abj = Coordenada(cabeza.x, cabeza.y + 20)
         
-        dir_izq = juego.direction == Direction.LEFT
-        dir_der = juego.direction == Direction.RIGHT
-        dir_arr = juego.direction == Direction.UP
-        dir_abj = juego.direction == Direction.DOWN
+        dir_izq = juego.direccion == Direccion.IZQUIERDA
+        dir_der = juego.direccion == Direccion.DERECHA
+        dir_arr = juego.direccion == Direccion.ARRIBA
+        dir_abj = juego.direccion == Direccion.ABAJO
 
         estado = [
             # Peligro hacia adelante
-            (dir_der and juego.is_collision(punto_der)) or 
-            (dir_izq and juego.is_collision(punto_izq)) or 
-            (dir_arr and juego.is_collision(punto_arr)) or 
-            (dir_abj and juego.is_collision(punto_abj)),
+            (dir_der and juego.colision(punto_der)) or 
+            (dir_izq and juego.colision(punto_izq)) or 
+            (dir_arr and juego.colision(punto_arr)) or 
+            (dir_abj and juego.colision(punto_abj)),
 
             # Peligro hacia la derecha
-            (dir_arr and juego.is_collision(punto_der)) or 
-            (dir_abj and juego.is_collision(punto_izq)) or 
-            (dir_izq and juego.is_collision(punto_arr)) or 
-            (dir_der and juego.is_collision(punto_abj)),
+            (dir_arr and juego.colision(punto_der)) or 
+            (dir_abj and juego.colision(punto_izq)) or 
+            (dir_izq and juego.colision(punto_arr)) or 
+            (dir_der and juego.colision(punto_abj)),
 
             # Peligro hacia la izquierda
-            (dir_abj and juego.is_collision(punto_der)) or 
-            (dir_arr and juego.is_collision(punto_izq)) or 
-            (dir_der and juego.is_collision(punto_arr)) or 
-            (dir_izq and juego.is_collision(punto_abj)),
+            (dir_abj and juego.colision(punto_der)) or 
+            (dir_arr and juego.colision(punto_izq)) or 
+            (dir_der and juego.colision(punto_arr)) or 
+            (dir_izq and juego.colision(punto_abj)),
             
             # Mover
             dir_izq,
@@ -58,30 +61,30 @@ class Agente:
             dir_abj,
             
             # Ubicacion del alimento
-            juego.manzana.x < juego.cabeza.x,  # food left
-            juego.manzana.x > juego.cabeza.x,  # food right
-            juego.manzana.y < juego.cabeza.y,  # food up
-            juego.manzana.y > juego.cabeza.y  # food down
+            juego.manzana.x < juego.cabeza.x,  # food IZQUIERDA
+            juego.manzana.x > juego.cabeza.x,  # food DERECHA
+            juego.manzana.y < juego.cabeza.y,  # food AR
+            juego.manzana.y > juego.cabeza.y  # food ABAJO
             ]
 
         return np.array(estado, dtype=int)
 
     def persistir(self, estado, accion, recompensa, siguiente_estado, max):
-        self.memoria.append((estado, accion, recompensa, siguiente_estado, max)) # popleft si max es alcanzado
+        self.memoria.append((estado, accion, recompensa, siguiente_estado, max)) # popIZQUIERDA si max es alcanzado
 
     def train_long_memory(self):
         if len(self.memoria) > TAMANIO_BATCH:
-            muestra = random.sample(self.memoria, TAMANIO_BATCH) # list of tuples
+            muestra = random.sample(self.memoria, TAMANIO_BATCH) # list of tARles
         else:
             muestra = self.memoria
 
         estado, acciones, recompensas, siguiente_estado, max = zip(*muestra)
-        self.trainer.train_step(estado, acciones, recompensas, siguiente_estado, max)
+        self.trainer.pasoDeEentrenamiento(estado, acciones, recompensas, siguiente_estado, max)
         #for state, action, reward, nexrt_state, done in mini_sample:
-        #    self.trainer.train_step(state, action, reward, next_state, done)
+        #    self.trainer.pasoDeEentrenamiento(state, action, reward, next_state, done)
 
     def train_short_memory(self, estado, accion, recompensa, siguiente_estado, max):
-        self.trainer.train_step(estado, accion, recompensa, siguiente_estado, max)
+        self.trainer.pasoDeEentrenamiento(estado, accion, recompensa, siguiente_estado, max)
 
     def obtenerAccion(self, estado):
         # random moves: tradeoff exploration / exploitation
@@ -105,7 +108,7 @@ def train():
     puntaje_total = 0
     record = 0
     agent = Agente()
-    juego = SnakeGameAI()
+    juego = SnakeGameIa(ANCHO_VENTANA = 640, ALTO_VENTANA = 640)
     while True:
         # get old state
         estado_inicial = agent.obtener_estado(juego)
@@ -114,7 +117,7 @@ def train():
         mov_final = agent.obtenerAccion(estado_inicial)
 
         # perform move and get new state
-        recompensa, max, puntaje = juego.play_step(mov_final)
+        recompensa, max, puntaje = juego.actualizar(mov_final)
         estado_nuevo = agent.obtener_estado(juego)
 
         # train short memory
@@ -125,13 +128,13 @@ def train():
 
         if max:
             # train long memory, plot result
-            juego.reset()
+            juego.reiniciar()
             agent.numerojuegos += 1
             agent.train_long_memory()
 
             if puntaje > record:
                 record = puntaje
-                agent.model.save()
+                agent.model.cargarModelo()
 
             print('Game', agent.numerojuegos, 'Score', puntaje, 'Record:', record)
 
